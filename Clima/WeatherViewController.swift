@@ -22,11 +22,7 @@ class WeatherViewController: UIViewController {
     
 
     //TODO: Declare instance variables here
-    @IBOutlet weak var mName: UILabel!
-    @IBOutlet weak var mLocation: UILabel!
-    @IBOutlet weak var mPhoto: UIImageView!
-    @IBOutlet weak var mDescription: UILabel!
-    var manager:CLLocationManager
+    var manager:CLLocationManager!
 
     
     //Pre-linked IBOutlets
@@ -41,6 +37,7 @@ class WeatherViewController: UIViewController {
         
         //TODO:Set up the location manager here.
         manager = CLLocationManager()
+        manager.delegate = self
         manager.desiredAccuracy = kCLLocationAccuracyBest
         manager.requestAlwaysAuthorization()
         manager.startUpdatingLocation()
