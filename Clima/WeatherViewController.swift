@@ -20,9 +20,12 @@ class WeatherViewController: UIViewController {
     /***Get your own App ID at https://openweathermap.org/appid ****/
     
     
-
+    
     //TODO: Declare instance variables here
     var manager:CLLocationManager!
+    var managerDelegate: CLLocationManagerDelegate!
+    var lat: Double = 0.0
+    var lon: Double = 0.0
 
     
     //Pre-linked IBOutlets
@@ -37,10 +40,14 @@ class WeatherViewController: UIViewController {
         
         //TODO:Set up the location manager here.
         manager = CLLocationManager()
-        manager.delegate = self
-        manager.desiredAccuracy = kCLLocationAccuracyBest
+        managerDelegate = manager.delegate
         manager.requestAlwaysAuthorization()
+        manager.desiredAccuracy = kCLLocationAccuracyBest
         manager.startUpdatingLocation()
+        guard let locValue: CLLocationCoordinate2D = manager.location?.coordinate else { return }
+        lat = locValue.latitude
+        lon = locValue.longitude
+        getWeatherData()
         
     
         
@@ -49,10 +56,33 @@ class WeatherViewController: UIViewController {
     
     
     
+    
     //MARK: - Networking
     /***************************************************************/
     
     //Write the getWeatherData method here:
+    func getWeatherData(){
+        
+        let url = "http://api.openweathermap.org/data/2.5/weather?lat=\(lat)&lon=\(lon)&APPID=\(APP_ID)"
+        AF.request(url).responseJSON { response in
+            guard let data = response.data else {
+                
+                return
+            }
+            
+            let json = try? JSON(data: data)
+            
+            
+            guard  let results = json else {
+               print("vacio")
+                return
+            }
+            self.updateWeatherData(data:results)
+            
+        }
+        
+        
+    }
     
 
     
@@ -65,6 +95,16 @@ class WeatherViewController: UIViewController {
    
     
     //Write the updateWeatherData method here:
+    func updateWeatherData(data: JSON){
+        guard let temp: Double = data["main"]["temp"].double, let city = data["name"].string, let condition = data["weather"][0]["id"].int else{
+            
+            
+            return
+        }
+        let celsius = temp - 273.1
+        self.updateUIWithWeatherData(temp:celsius,city:city,condition: condition)
+        
+    }
     
 
     
@@ -75,6 +115,15 @@ class WeatherViewController: UIViewController {
     
     
     //Write the updateUIWithWeatherData method here:
+    func updateUIWithWeatherData(temp: Double, city: String, condition: Int){
+        self.cityLabel.text = city
+        self.temperatureLabel.text = String(Int(temp)) + "º"
+        print(String(temp) + "º")
+        self.weatherIcon.image = UIImage.init(named:WeatherDataModel().updateWeatherIcon(condition: condition))
+        
+        
+    
+    }
     
     
     
@@ -86,10 +135,24 @@ class WeatherViewController: UIViewController {
     
     
     //Write the didUpdateLocations method here:
+    func locationManager(_ manager: CLLocationManager,
+                         didUpdateLocations locations: [CLLocation]){
+        self.getWeatherData()
+        
+        
+    }
     
     
     
     //Write the didFailWithError method here:
+    func locationManager(_ manager: CLLocationManager,
+                         didFailWithError error: Error){
+        manager.stopUpdatingLocation()
+        self.cityLabel.text = error.localizedDescription
+        self.temperatureLabel.text = ""
+        self.weatherIcon.image = UIImage()
+        
+    }
     
     
     
@@ -101,13 +164,53 @@ class WeatherViewController: UIViewController {
     
     //Write the userEnteredANewCityName Delegate method here:
     
-
     
-    //Write the PrepareForSegue Method here
+    override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
+        
+        
+        if let destinationController = segue.destination as? ChangeCityViewController {
+            destinationController.delegate = self
+            
+            
+        }
+    }
     
     
     
     
+    
+    
+}
+extension WeatherViewController: CityChangeDelegate{
+    func changeCity(city: String) {
+        let url = "http://api.openweathermap.org/data/2.5/weather?q=\(city)&APPID=\(APP_ID)"
+        print(url)
+        AF.request(url).responseJSON { response in
+            guard let data = response.data else {
+                
+                return
+            }
+            
+            let json = try? JSON(data: data)
+            
+            
+            guard  let results = json else {
+                print("vacio")
+                return
+                
+            }
+            if(results["cod"].int != 200){
+                self.weatherIcon.image = UIImage()
+                self.cityLabel.text = "Error while loading, try again"
+                self.temperatureLabel.text = ""
+            }else{
+                self.updateWeatherData(data:results)
+            }
+           
+            
+        }
+        
+    }
     
 }
 
